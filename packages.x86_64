@@ -184,3 +184,12 @@ super + b
 	brave-browser
 EOF
 
+# --- FILE MANAGEMENT ---
+thunar
+thunar-volman
+thunar-archive-plugin
+gvfs
+gvfs-mtp
+ranger
+
+

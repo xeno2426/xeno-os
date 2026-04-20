@@ -10,3 +10,11 @@ bspc node -c
 # Start Brave Browser
 super + b
 brave-browser
+
+# Open GUI File Manager
+super + f
+thunar
+
+# Open Terminal File Manager
+super + r
+kitty -e ranger

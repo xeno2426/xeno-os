@@ -197,4 +197,10 @@ plank
 lxappearance
 papirus-icon-theme
 
+ttf-jetbrains-mono-nerd
+feh
+
+# --- MONITORING & STATS ---
+btop
+conky
 

@@ -169,3 +169,11 @@ ripgrep
 fzf
 tmux
 
+tlp
+avahi
+# --- APP INSTALLATION TOOLS ---
+flatpak
+yay
+pamac-nosnap
+arch-install-scripts
+

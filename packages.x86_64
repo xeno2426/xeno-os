@@ -192,4 +192,9 @@ gvfs
 gvfs-mtp
 ranger
 
+# --- UI & VISUALS ---
+plank
+lxappearance
+papirus-icon-theme
+
 

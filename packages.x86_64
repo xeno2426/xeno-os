@@ -144,3 +144,28 @@ cmake
 htop
 fastfetch
 
+# --- ROBOTICS & IoT (ESP32-S3) ---
+esptool
+python-pyserial
+minicom
+screen
+avrdude
+
+# --- AI & DATA SCIENCE ---
+git-lfs
+blas-openblas
+gcc-fortran
+python-numpy
+python-scipy
+
+# --- MODERN DEV & CLOUD ---
+docker
+docker-compose
+nodejs
+npm
+yarn
+jq
+ripgrep
+fzf
+tmux
+

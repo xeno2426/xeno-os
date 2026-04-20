@@ -177,3 +177,10 @@ yay
 pamac-nosnap
 arch-install-scripts
 
+cat << 'EOF' >> ~/xeno-os/airootfs/etc/skel/.config/sxhkd/sxhkdrc
+
+# Start Brave Browser
+super + b
+	brave-browser
+EOF
+

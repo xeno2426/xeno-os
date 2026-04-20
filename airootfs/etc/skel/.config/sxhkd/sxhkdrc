@@ -6,3 +6,7 @@ super + alt + Escape
 bspc quit
 super + w
 bspc node -c
+
+# Start Brave Browser
+super + b
+brave-browser

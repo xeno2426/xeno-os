@@ -126,7 +126,12 @@ xdg-utils
 xfsprogs
 xl2tpd
 zsh
-# --- XENO CUSTOM DEV ENVIRONMENT ---
+
+# --- CHAOTIC-AUR KEYRING (must be first) ---
+chaotic-keyring
+chaotic-mirrorlist
+
+# --- XENO DESKTOP ENVIRONMENT ---
 xorg-server
 xorg-xinit
 bspwm
@@ -135,23 +140,42 @@ kitty
 picom
 rofi
 polybar
+plank
+nitrogen
+lxappearance
+arc-gtk-theme
+papirus-icon-theme
+ttf-jetbrains-mono-nerd
+ttf-font-awesome
+
+# --- TERMINAL & EDITOR ---
 neovim
 git
-python
-python-pip
 base-devel
 cmake
 htop
+btop
 fastfetch
+
+# --- APPS ---
+brave-bin
+thunar
+thunar-volman
+thunar-archive-plugin
+gvfs
+gvfs-mtp
+ranger
+conky
 
 # --- ROBOTICS & IoT (ESP32-S3) ---
 esptool
 python-pyserial
 minicom
-screen
 avrdude
 
 # --- AI & DATA SCIENCE ---
+python
+python-pip
 git-lfs
 blas-openblas
 gcc-fortran
@@ -167,40 +191,13 @@ yarn
 jq
 ripgrep
 fzf
-tmux
 
+# --- POWER & SYSTEM ---
 tlp
 avahi
-# --- APP INSTALLATION TOOLS ---
+networkmanager
+
+# --- AUR / MISC ---
 flatpak
 yay
 pamac-nosnap
-arch-install-scripts
-
-cat << 'EOF' >> ~/xeno-os/airootfs/etc/skel/.config/sxhkd/sxhkdrc
-
-# Start Brave Browser
-super + b
-	brave-browser
-EOF
-
-# --- FILE MANAGEMENT ---
-thunar
-thunar-volman
-thunar-archive-plugin
-gvfs
-gvfs-mtp
-ranger
-
-# --- UI & VISUALS ---
-plank
-lxappearance
-papirus-icon-theme
-
-ttf-jetbrains-mono-nerd
-feh
-
-# --- MONITORING & STATS ---
-btop
-conky
-

@@ -1,0 +1,17 @@
+[Unit]
+Description=Xeno OS — Chaotic-AUR Keyring Initialization
+After=network-online.target
+Wants=network-online.target
+Before=pacman-init.service
+ConditionPathExists=!/var/lib/xeno-init-done
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/xeno-init.sh
+ExecStartPost=/usr/bin/touch /var/lib/xeno-init-done
+RemainAfterExit=yes
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

@@ -1,24 +1,109 @@
+# ─── Applications ─────────────────────────────────────────────────────────────
+
+# Terminal
 super + Return
-kitty
+    kitty
+
+# App Launcher
 super + space
-rofi -show drun
-super + alt + Escape
-bspc quit
-super + w
-bspc node -c
+    rofi -show drun -show-icons
 
-# Start Brave Browser
-super + b
-brave-browser
+# File Manager (GUI)
+super + e
+    thunar
 
-# Open GUI File Manager
-super + f
-thunar
-
-# Open Terminal File Manager
+# File Manager (Terminal)
 super + r
-kitty -e ranger
+    kitty -e ranger
 
-# Open System Monitor (btop)
-super + Shift + Return
-kitty -e btop
+# Browser
+super + b
+    brave-browser
+
+# System Monitor
+super + shift + Return
+    kitty -e btop
+
+# ─── Window Management ────────────────────────────────────────────────────────
+
+# Close window
+super + w
+    bspc node -c
+
+# Kill window
+super + shift + w
+    bspc node -k
+
+# Toggle fullscreen
+super + f
+    bspc node -t \~fullscreen
+
+# Toggle floating
+super + shift + space
+    bspc node -t \~floating
+
+# Toggle monocle layout
+super + m
+    bspc desktop -l next
+
+# ─── Focus / Move ─────────────────────────────────────────────────────────────
+
+# Focus node (vim keys)
+super + {h,j,k,l}
+    bspc node -f {west,south,north,east}
+
+# Move node
+super + shift + {h,j,k,l}
+    bspc node -s {west,south,north,east}
+
+# Focus workspace
+super + {1-9,0}
+    bspc desktop -f '^{1-9,10}'
+
+# Move node to workspace
+super + shift + {1-9,0}
+    bspc node -d '^{1-9,10}'
+
+# ─── Resize ───────────────────────────────────────────────────────────────────
+super + alt + {h,j,k,l}
+    bspc node -z {left -20 0,bottom 0 20,top 0 -20,right 20 0}
+
+# ─── System ───────────────────────────────────────────────────────────────────
+
+# Quit bspwm
+super + alt + Escape
+    bspc quit
+
+# Reload sxhkd
+super + Escape
+    pkill -USR1 -x sxhkd
+
+# ─── Media Keys ───────────────────────────────────────────────────────────────
+XF86AudioRaiseVolume
+    pactl set-sink-volume @DEFAULT_SINK@ +5%
+XF86AudioLowerVolume
+    pactl set-sink-volume @DEFAULT_SINK@ -5%
+XF86AudioMute
+    pactl set-sink-mute @DEFAULT_SINK@ toggle
+XF86AudioPlay
+    playerctl play-pause
+XF86AudioNext
+    playerctl next
+XF86AudioPrev
+    playerctl previous
+
+# Brightness
+XF86MonBrightnessUp
+    brightnessctl set +5%
+XF86MonBrightnessDown
+    brightnessctl set 5%-
+
+# ─── Screenshot ───────────────────────────────────────────────────────────────
+
+# Full screenshot
+Print
+    scrot ~/Pictures/Screenshots/%Y-%m-%d_%H-%M-%S.png -e 'notify-send "Screenshot saved"'
+
+# Selection screenshot
+super + Print
+    scrot -s ~/Pictures/Screenshots/%Y-%m-%d_%H-%M-%S.png -e 'notify-send "Screenshot saved"'

@@ -127,13 +127,14 @@ xfsprogs
 xl2tpd
 zsh
 
-# --- CHAOTIC-AUR KEYRING (must be first) ---
+# --- CHAOTIC-AUR KEYRING ---
 chaotic-keyring
 chaotic-mirrorlist
 
 # --- XENO DESKTOP ENVIRONMENT ---
 xorg-server
 xorg-xinit
+xorg-xrandr
 bspwm
 sxhkd
 kitty
@@ -148,7 +149,7 @@ papirus-icon-theme
 ttf-jetbrains-mono-nerd
 ttf-font-awesome
 
-# --- TERMINAL & EDITOR ---
+# --- TERMINAL STACK ---
 neovim
 git
 base-devel
@@ -156,6 +157,25 @@ cmake
 htop
 btop
 fastfetch
+bat
+fd
+eza
+ripgrep
+fzf
+starship
+zsh-syntax-highlighting
+zsh-autosuggestions
+zsh-completions
+zsh-history-substring-search
+
+# --- NOTIFICATIONS & LOCK ---
+dunst
+imagemagick
+xss-lock
+
+# --- SYSTEM INSTALLER ---
+dialog
+newt
 
 # --- APPS ---
 brave-bin
@@ -166,8 +186,19 @@ gvfs
 gvfs-mtp
 ranger
 conky
+file-roller
+unzip
+zip
+p7zip
 
-# --- ROBOTICS & IoT (ESP32-S3) ---
+# --- AUDIO ---
+pavucontrol
+playerctl
+pipewire
+pipewire-pulse
+wireplumber
+
+# --- ROBOTICS & IoT ---
 esptool
 python-pyserial
 minicom
@@ -176,11 +207,15 @@ avrdude
 # --- AI & DATA SCIENCE ---
 python
 python-pip
+python-virtualenv
+python-pillow
+python-ipython
 git-lfs
 blas-openblas
 gcc-fortran
 python-numpy
 python-scipy
+python-matplotlib
 
 # --- MODERN DEV & CLOUD ---
 docker
@@ -189,15 +224,18 @@ nodejs
 npm
 yarn
 jq
-ripgrep
-fzf
 
 # --- POWER & SYSTEM ---
 tlp
 avahi
 networkmanager
+brightnessctl
+
+# --- PLYMOUTH (boot splash) ---
+plymouth
 
 # --- AUR / MISC ---
 flatpak
 yay
 pamac-nosnap
+betterlockscreen

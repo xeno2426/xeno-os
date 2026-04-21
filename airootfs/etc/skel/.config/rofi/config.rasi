@@ -1,0 +1,8 @@
+configuration {
+    show-icons:  true;
+    icon-theme:  "Papirus-Dark";
+    font:        "JetBrainsMono Nerd Font 11";
+    drun-display-format: "{name}";
+    disable-history: false;
+}
+@theme "~/.config/rofi/theme.rasi"

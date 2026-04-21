@@ -1,0 +1,116 @@
+#!/usr/bin/env python3
+"""xeno-wallpaper — Generate Catppuccin Mocha gradient wallpapers."""
+import os, math
+from pathlib import Path
+
+OUT_DIR = Path.home() / ".local/share/backgrounds/xeno-os"
+OUT_DIR.mkdir(parents=True, exist_ok=True)
+
+try:
+    from PIL import Image, ImageDraw
+except ImportError:
+    print("[xeno-wallpaper] python-pillow not found. Install with: pip install pillow")
+    raise SystemExit(1)
+
+W, H = 2560, 1440
+
+def hex_to_rgb(h):
+    h = h.lstrip('#')
+    return tuple(int(h[i:i+2], 16) for i in (0, 2, 4))
+
+# ─── Wallpaper 1: Deep Space Gradient ────────────────────────────────────────
+def wp_deep_space():
+    img = Image.new("RGB", (W, H))
+    d   = ImageDraw.Draw(img)
+    top    = hex_to_rgb("#11111b")  # crust
+    bottom = hex_to_rgb("#1e1e2e")  # base
+    accent = hex_to_rgb("#89b4fa")  # blue
+    for y in range(H):
+        t = y / H
+        r = int(top[0] + (bottom[0] - top[0]) * t)
+        g = int(top[1] + (bottom[1] - top[1]) * t)
+        b = int(top[2] + (bottom[2] - top[2]) * t)
+        d.line([(0, y), (W, y)], fill=(r, g, b))
+    # Subtle radial glow at centre
+    for radius in range(300, 0, -1):
+        alpha = int(18 * (1 - radius / 300))
+        cx, cy2 = W // 2, H // 2
+        d.ellipse([cx-radius, cy2-radius, cx+radius, cy2+radius],
+                  fill=(accent[0], accent[1], accent[2]))
+    # Re-blend glow with background using a composite pass
+    glow = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    gd   = ImageDraw.Draw(glow)
+    for radius in range(280, 0, -2):
+        a = int(6 * (1 - radius / 280))
+        cx, cy2 = W // 2, H // 2
+        gd.ellipse([cx-radius, cy2-radius, cx+radius, cy2+radius],
+                   fill=(accent[0], accent[1], accent[2], a))
+    base_rgba = img.convert("RGBA")
+    base_rgba = Image.alpha_composite(base_rgba, glow)
+    return base_rgba.convert("RGB")
+
+# ─── Wallpaper 2: Mocha Grid ──────────────────────────────────────────────────
+def wp_grid():
+    img  = Image.new("RGB", (W, H), hex_to_rgb("#1e1e2e"))
+    d    = ImageDraw.Draw(img)
+    line_color = (*hex_to_rgb("#313244"), 60)
+    step = 80
+    for x in range(0, W, step):
+        d.line([(x, 0), (x, H)], fill=hex_to_rgb("#2a2a3d"), width=1)
+    for y in range(0, H, step):
+        d.line([(0, y), (W, y)], fill=hex_to_rgb("#2a2a3d"), width=1)
+    # Blue accent dots at intersections near centre
+    cx, cy2 = W // 2, H // 2
+    blue = hex_to_rgb("#89b4fa")
+    mauve = hex_to_rgb("#cba6f7")
+    for ix in range(-8, 9):
+        for iy in range(-5, 6):
+            dist = math.sqrt(ix**2 + iy**2)
+            if dist > 9:
+                continue
+            px = cx + ix * step
+            py = cy2 + iy * step
+            alpha = max(0, 1 - dist / 9)
+            color = blue if (ix + iy) % 2 == 0 else mauve
+            r2 = max(1, int(4 * alpha))
+            d.ellipse([px-r2, py-r2, px+r2, py+r2], fill=color)
+    return img
+
+# ─── Wallpaper 3: Diagonal Waves ─────────────────────────────────────────────
+def wp_waves():
+    img = Image.new("RGB", (W, H))
+    d   = ImageDraw.Draw(img)
+    colors = [
+        hex_to_rgb("#11111b"), hex_to_rgb("#181825"),
+        hex_to_rgb("#1e1e2e"), hex_to_rgb("#313244"),
+    ]
+    for y in range(H):
+        for stripe in range(len(colors) - 1):
+            c1 = colors[stripe]
+            c2 = colors[stripe + 1]
+            band = H // (len(colors) - 1)
+            local_y = y - stripe * band
+            if 0 <= local_y <= band:
+                t = local_y / band
+                wave = int(60 * math.sin(y / 120 + stripe))
+                r = int(c1[0] + (c2[0] - c1[0]) * t)
+                g = int(c1[1] + (c2[1] - c1[1]) * t)
+                b = int(c1[2] + (c2[2] - c1[2]) * t)
+                d.line([(0, y), (W, y)], fill=(r, g, b))
+                break
+    return img
+
+wallpapers = [
+    ("xeno-deep-space.png", wp_deep_space),
+    ("xeno-grid.png",       wp_grid),
+    ("xeno-waves.png",      wp_waves),
+]
+
+for name, fn in wallpapers:
+    path = OUT_DIR / name
+    print(f"  Generating {name}...", end=" ", flush=True)
+    img = fn()
+    img.save(str(path), "PNG", optimize=True)
+    print("done")
+
+print(f"\nWallpapers saved to {OUT_DIR}")

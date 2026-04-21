@@ -1,0 +1,8 @@
+[Plymouth Theme]
+Name=Xeno OS
+Description=Xeno OS boot splash — Catppuccin Mocha
+ModuleName=script
+
+[script]
+ImageDir=/usr/share/plymouth/themes/xeno
+ScriptFile=/usr/share/plymouth/themes/xeno/xeno.script

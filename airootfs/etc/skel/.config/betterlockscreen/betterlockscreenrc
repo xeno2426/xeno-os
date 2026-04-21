@@ -1,0 +1,41 @@
+# ─── Xeno OS — betterlockscreen config ───────────────────────────────────────
+
+# Blur intensity (0.0 - 15.0)
+blur_strength=4
+
+# Login box position (center, left, right)
+loginbox_position=center
+
+# Date format
+date_format="%A, %d %B %Y"
+time_format="%H:%M"
+
+# Fonts — JetBrainsMono Nerd Font
+time_font="JetBrainsMono Nerd Font:style=Bold:pixelsize=96"
+date_font="JetBrainsMono Nerd Font:style=Regular:pixelsize=28"
+greeter_font="JetBrainsMono Nerd Font:style=Regular:pixelsize=22"
+wrong_font="JetBrainsMono Nerd Font:style=Regular:pixelsize=22"
+
+# Colours — Catppuccin Mocha
+time_color="#cdd6f4"
+date_color="#a6adc8"
+greeter_color="#89b4fa"
+wrong_color="#f38ba8"
+locktext_color="#6c7086"
+
+# Input ring
+ring_color="#45475a"
+ring_ver_color="#89b4fa"
+ring_wrong_color="#f38ba8"
+ring_clear_color="#a6e3a1"
+inside_color="#1e1e2eaa"
+inside_ver_color="#1e1e2eaa"
+inside_wrong_color="#1e1e2eaa"
+line_color="#313244"
+key_hl_color="#89b4fa"
+bshl_color="#f38ba8"
+separator_color="#313244"
+
+# Greeter text
+greeter_text="Welcome back."
+wrong_text="Try again."

@@ -1,0 +1,323 @@
+#!/usr/bin/env bash
+# ╔══════════════════════════════════════════════════════════════════╗
+# ║              Xeno OS Installer — TUI (dialog-based)             ║
+# ║  Guides through disk, locale, user, and desktop setup,          ║
+# ║  then delegates heavy lifting to archinstall via JSON config.    ║
+# ╚══════════════════════════════════════════════════════════════════╝
+
+set -euo pipefail
+
+# ─── Colours (for non-dialog output) ─────────────────────────────────────────
+RED='\033[0;31m'; GREEN='\033[0;32m'; BLUE='\033[0;34m'
+CYAN='\033[0;36m'; YELLOW='\033[1;33m'; NC='\033[0m'
+
+TMPDIR="$(mktemp -d)"
+CONFIG_FILE="$TMPDIR/xeno-install.json"
+trap 'rm -rf "$TMPDIR"' EXIT
+
+# ─── Helpers ──────────────────────────────────────────────────────────────────
+die()    { dialog --title "Fatal Error" --msgbox "$1" 8 50; clear; exit 1; }
+info()   { dialog --title "Info" --infobox "$1" 5 50; sleep 1; }
+check_root() { [[ $EUID -ne 0 ]] && die "Xeno Installer must be run as root."; }
+check_net()  {
+    if ! ping -c1 -W3 archlinux.org &>/dev/null; then
+        dialog --title "No Internet" --yesno \
+            "No internet connection detected.\nInstallation requires internet. Continue anyway?" 8 55
+        [[ $? -ne 0 ]] && clear && exit 1
+    fi
+}
+
+# ─── Screen 1: Welcome ────────────────────────────────────────────────────────
+welcome() {
+    dialog --backtitle "Xeno OS Installer" \
+           --title "Welcome to Xeno OS" \
+           --msgbox "\n\
+  ██╗  ██╗███████╗███╗   ██╗ ██████╗      ██████╗ ███████╗\n\
+  ╚██╗██╔╝██╔════╝████╗  ██║██╔═══██╗    ██╔═══██╗██╔════╝\n\
+   ╚███╔╝ █████╗  ██╔██╗ ██║██║   ██║    ██║   ██║███████╗\n\
+   ██╔██╗ ██╔══╝  ██║╚██╗██║██║   ██║    ██║   ██║╚════██║\n\
+  ██╔╝ ██╗███████╗██║ ╚████║╚██████╔╝    ╚██████╔╝███████║\n\
+  ╚═╝  ╚═╝╚══════╝╚═╝  ╚═══╝ ╚═════╝      ╚═════╝ ╚══════╝\n\
+\n\
+  Developer-Grade Arch Linux Distribution\n\
+\n\
+  This installer will guide you through:\n\
+    • Disk partitioning\n\
+    • Locale and timezone\n\
+    • User account creation\n\
+    • Desktop environment setup\n\
+\n\
+  Press OK to begin." 22 70
+}
+
+# ─── Screen 2: Disk Selection ─────────────────────────────────────────────────
+select_disk() {
+    local disks=()
+    while IFS= read -r line; do
+        local dev size
+        dev=$(echo "$line" | awk '{print $1}')
+        size=$(echo "$line" | awk '{print $2}')
+        disks+=("$dev" "$size")
+    done < <(lsblk -dpno NAME,SIZE | grep -E "^/dev/(sd|nvme|vd)")
+
+    [[ ${#disks[@]} -eq 0 ]] && die "No suitable disks found."
+
+    DISK=$(dialog --backtitle "Xeno OS Installer" \
+                  --title "Select Installation Disk" \
+                  --menu "\nChoose the disk to install Xeno OS onto.\n\nWARNING: All data will be erased!\n" \
+                  16 55 6 "${disks[@]}" 3>&1 1>&2 2>&3) || exit 1
+}
+
+# ─── Screen 3: Partition Scheme ───────────────────────────────────────────────
+select_partition_scheme() {
+    PARTITION_SCHEME=$(dialog --backtitle "Xeno OS Installer" \
+        --title "Partition Scheme" \
+        --menu "\nChoose a partition layout for $DISK:" \
+        14 60 3 \
+        "auto_btrfs"  "Auto — Btrfs (recommended, snapshots)" \
+        "auto_ext4"   "Auto — ext4 (simple, reliable)" \
+        "manual"      "Manual — open cfdisk (advanced)" \
+        3>&1 1>&2 2>&3) || exit 1
+
+    if [[ "$PARTITION_SCHEME" == "manual" ]]; then
+        clear
+        cfdisk "$DISK"
+        PARTITION_SCHEME="manual"
+    fi
+}
+
+# ─── Screen 4: Timezone ───────────────────────────────────────────────────────
+select_timezone() {
+    local regions=()
+    while IFS= read -r r; do
+        regions+=("$r" "")
+    done < <(timedatectl list-timezones | awk -F/ '{print $1}' | sort -u)
+
+    local region
+    region=$(dialog --backtitle "Xeno OS Installer" \
+                    --title "Timezone — Region" \
+                    --menu "\nSelect your region:" \
+                    20 50 12 "${regions[@]}" 3>&1 1>&2 2>&3) || exit 1
+
+    local cities=()
+    while IFS= read -r c; do
+        cities+=("$c" "")
+    done < <(timedatectl list-timezones | grep "^${region}/" | awk -F/ '{print $2}')
+
+    local city
+    city=$(dialog --backtitle "Xeno OS Installer" \
+                  --title "Timezone — City" \
+                  --menu "\nSelect your city in $region:" \
+                  20 50 12 "${cities[@]}" 3>&1 1>&2 2>&3) || exit 1
+
+    TIMEZONE="${region}/${city}"
+}
+
+# ─── Screen 5: Locale & Keyboard ─────────────────────────────────────────────
+select_locale() {
+    LOCALE=$(dialog --backtitle "Xeno OS Installer" \
+                    --title "System Locale" \
+                    --inputbox "\nEnter your locale (e.g. en_US.UTF-8):" \
+                    9 55 "en_US.UTF-8" \
+                    3>&1 1>&2 2>&3) || exit 1
+
+    KEYMAP=$(dialog --backtitle "Xeno OS Installer" \
+                    --title "Keyboard Layout" \
+                    --inputbox "\nEnter keyboard layout (e.g. us, uk, de):" \
+                    9 55 "us" \
+                    3>&1 1>&2 2>&3) || exit 1
+}
+
+# ─── Screen 6: Hostname ───────────────────────────────────────────────────────
+set_hostname() {
+    HOSTNAME=$(dialog --backtitle "Xeno OS Installer" \
+                      --title "Hostname" \
+                      --inputbox "\nEnter a hostname for this machine:" \
+                      9 50 "xeno" \
+                      3>&1 1>&2 2>&3) || exit 1
+    # Sanitise: lowercase alphanumeric and hyphens only
+    HOSTNAME=$(echo "$HOSTNAME" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9-]/-/g')
+}
+
+# ─── Screen 7: User Account ───────────────────────────────────────────────────
+create_user() {
+    USERNAME=$(dialog --backtitle "Xeno OS Installer" \
+                      --title "User Account" \
+                      --inputbox "\nEnter your username (lowercase, no spaces):" \
+                      9 55 "" \
+                      3>&1 1>&2 2>&3) || exit 1
+    USERNAME=$(echo "$USERNAME" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9_-]//g')
+    [[ -z "$USERNAME" ]] && die "Username cannot be empty."
+
+    local pass1 pass2
+    pass1=$(dialog --backtitle "Xeno OS Installer" \
+                   --title "User Password" \
+                   --passwordbox "\nEnter password for $USERNAME:" \
+                   9 50 3>&1 1>&2 2>&3) || exit 1
+    pass2=$(dialog --backtitle "Xeno OS Installer" \
+                   --title "User Password" \
+                   --passwordbox "\nConfirm password for $USERNAME:" \
+                   9 50 3>&1 1>&2 2>&3) || exit 1
+    [[ "$pass1" != "$pass2" ]] && die "Passwords do not match."
+    [[ -z "$pass1" ]] && die "Password cannot be empty."
+    USER_PASSWORD="$pass1"
+
+    ROOT_PASS=$(dialog --backtitle "Xeno OS Installer" \
+                       --title "Root Password" \
+                       --passwordbox "\nEnter root password (or leave blank to disable root login):" \
+                       9 60 3>&1 1>&2 2>&3) || exit 1
+}
+
+# ─── Screen 8: Desktop Extras ────────────────────────────────────────────────
+select_extras() {
+    EXTRAS=$(dialog --backtitle "Xeno OS Installer" \
+                    --title "Optional Components" \
+                    --checklist "\nSelect additional components to install:" \
+                    16 60 6 \
+                    "docker"    "Docker + Docker Compose"         ON  \
+                    "flatpak"   "Flatpak + Flathub"               ON  \
+                    "robotics"  "Robotics tools (ESP32, Arduino)" ON  \
+                    "ai"        "AI/Data Science (numpy, scipy)"  ON  \
+                    "brave"     "Brave Browser"                   ON  \
+                    "plymouth"  "Plymouth animated boot splash"   ON  \
+                    3>&1 1>&2 2>&3) || exit 1
+}
+
+# ─── Screen 9: Summary ────────────────────────────────────────────────────────
+confirm_install() {
+    local fs_label
+    case "$PARTITION_SCHEME" in
+        auto_btrfs) fs_label="Btrfs (auto)" ;;
+        auto_ext4)  fs_label="ext4 (auto)" ;;
+        *)          fs_label="Manual" ;;
+    esac
+
+    dialog --backtitle "Xeno OS Installer" \
+           --title "Installation Summary" \
+           --yesno "\
+┌─────────────────────────────────────┐
+│  Disk:       $DISK
+│  Filesystem: $fs_label
+│  Timezone:   $TIMEZONE
+│  Locale:     $LOCALE
+│  Keymap:     $KEYMAP
+│  Hostname:   $HOSTNAME
+│  Username:   $USERNAME
+└─────────────────────────────────────┘
+
+WARNING: $DISK will be COMPLETELY ERASED.
+
+Proceed with installation?" \
+           18 55 || exit 1
+}
+
+# ─── Screen 10: Build archinstall JSON Config ─────────────────────────────────
+build_config() {
+    local fs_type bootloader
+    case "$PARTITION_SCHEME" in
+        auto_btrfs) fs_type="btrfs" ;;
+        *)          fs_type="ext4"  ;;
+    esac
+    bootloader="systemd-bootctl"
+
+    cat > "$CONFIG_FILE" << JSONEOF
+{
+  "disk_config": {
+    "config_type": "default_layout",
+    "device_modifications": [
+      {
+        "device": "$DISK",
+        "wipe": true,
+        "partitions": [
+          {
+            "name": "boot",
+            "fs_type": "fat32",
+            "start": "1MiB",
+            "size": "512MiB",
+            "mountpoint": "/boot",
+            "type": "primary",
+            "boot": true
+          },
+          {
+            "name": "root",
+            "fs_type": "$fs_type",
+            "start": "513MiB",
+            "size": "100%",
+            "mountpoint": "/",
+            "type": "primary"
+          }
+        ]
+      }
+    ]
+  },
+  "bootloader": "$bootloader",
+  "hostname": "$HOSTNAME",
+  "locale_config": {
+    "kb_layout": "$KEYMAP",
+    "sys_enc": "UTF-8",
+    "sys_lang": "$LOCALE"
+  },
+  "timezone": "$TIMEZONE",
+  "mirror_config": {
+    "mirror_regions": {}
+  },
+  "kernels": ["linux"],
+  "packages": ["networkmanager", "sudo", "git", "base-devel", "neovim"],
+  "services": ["NetworkManager"],
+  "user_accounts": [
+    {
+      "username": "$USERNAME",
+      "password": "$USER_PASSWORD",
+      "sudo": true,
+      "groups": ["wheel", "docker", "dialout", "video", "audio", "input"]
+    }
+  ],
+  "root_password": "$ROOT_PASS"
+}
+JSONEOF
+}
+
+# ─── Install ──────────────────────────────────────────────────────────────────
+run_install() {
+    clear
+    echo -e "${CYAN}Starting Xeno OS installation...${NC}\n"
+    echo -e "${YELLOW}Disk: $DISK | User: $USERNAME | Host: $HOSTNAME${NC}\n"
+
+    if archinstall --config "$CONFIG_FILE" --silent; then
+        dialog --backtitle "Xeno OS Installer" \
+               --title "Installation Complete" \
+               --msgbox "\n\
+  Xeno OS has been installed successfully!\n\
+\n\
+  Your system is ready. On first login the\n\
+  Xeno first-run setup will complete the\n\
+  desktop environment configuration.\n\
+\n\
+  Remove the USB drive and reboot." \
+               14 55
+    else
+        die "archinstall exited with an error. Check /tmp/archinstall.log for details."
+    fi
+}
+
+# ─── Main ─────────────────────────────────────────────────────────────────────
+main() {
+    check_root
+    check_net
+    welcome
+    select_disk
+    select_partition_scheme
+    select_timezone
+    select_locale
+    set_hostname
+    create_user
+    select_extras
+    confirm_install
+    build_config
+    run_install
+    clear
+    echo -e "\n${GREEN}Installation complete. Rebooting in 10 seconds...${NC}"
+    sleep 10 && reboot
+}
+
+main "$@"

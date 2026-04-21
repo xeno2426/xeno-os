@@ -1,0 +1,14 @@
+[PlankDockPreferences]
+CurrentWorkspaceOnly=false
+IconSize=42
+HideMode=1
+UnhideDelay=0
+HideDelay=400
+Monitor=-1
+DockItems=brave-browser.dockitem;;org.gnome.Thunar.dockitem;;kitty.dockitem;;xeno-ai.dockitem
+Position=3
+Theme=Xeno
+ZoomPercent=115
+AutoPinning=true
+PinnedOnly=false
+LockItems=false

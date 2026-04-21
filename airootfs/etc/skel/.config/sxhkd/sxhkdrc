@@ -1,18 +1,22 @@
-# ─── Applications ─────────────────────────────────────────────────────────────
+# ╔══════════════════════════════════════════════════════════════════╗
+# ║               Xeno OS — sxhkdrc                                 ║
+# ╚══════════════════════════════════════════════════════════════════╝
+
+# ─── Application Launchers ────────────────────────────────────────────────────
 
 # Terminal
 super + Return
     kitty
 
-# App Launcher
+# App launcher (Rofi)
 super + space
     rofi -show drun -show-icons
 
-# File Manager (GUI)
+# File manager (GUI)
 super + e
     thunar
 
-# File Manager (Terminal)
+# File manager (terminal)
 super + r
     kitty -e ranger
 
@@ -20,17 +24,44 @@ super + r
 super + b
     brave-browser
 
-# System Monitor
+# System monitor
 super + shift + Return
     kitty -e btop
 
+# Text editor
+super + t
+    kitty -e nvim
+
+# AI tools launcher
+super + a
+    xeno-ai
+
+# Lock screen
+super + shift + l
+    xeno-lock
+
+# Screenshot — full
+Print
+    scrot "$HOME/Pictures/Screenshots/%Y-%m-%d_%H-%M-%S.png" \
+        -e 'notify-send "Screenshot" "Saved to ~/Pictures/Screenshots/" -i image-x-generic'
+
+# Screenshot — selection
+super + Print
+    scrot -s "$HOME/Pictures/Screenshots/%Y-%m-%d_%H-%M-%S.png" \
+        -e 'notify-send "Screenshot" "Selection saved" -i image-x-generic'
+
+# Screenshot — focused window
+super + shift + Print
+    scrot -u "$HOME/Pictures/Screenshots/%Y-%m-%d_%H-%M-%S.png" \
+        -e 'notify-send "Screenshot" "Window saved" -i image-x-generic'
+
 # ─── Window Management ────────────────────────────────────────────────────────
 
-# Close window
+# Close focused node
 super + w
     bspc node -c
 
-# Kill window
+# Kill focused node
 super + shift + w
     bspc node -k
 
@@ -46,64 +77,94 @@ super + shift + space
 super + m
     bspc desktop -l next
 
-# ─── Focus / Move ─────────────────────────────────────────────────────────────
+# Balance tree
+super + equal
+    bspc node @/ -B
 
-# Focus node (vim keys)
+# Rotate tree
+super + shift + r
+    bspc node @/ -R 90
+
+# ─── Focus / Move Nodes ───────────────────────────────────────────────────────
+
+# Focus (vim keys)
 super + {h,j,k,l}
     bspc node -f {west,south,north,east}
 
-# Move node
+# Swap nodes
 super + shift + {h,j,k,l}
     bspc node -s {west,south,north,east}
 
-# Focus workspace
+# Preselect direction
+super + ctrl + {h,j,k,l}
+    bspc node -p {west,south,north,east}
+
+# Cancel preselection
+super + ctrl + space
+    bspc node -p cancel
+
+# ─── Focus / Move to Desktop ──────────────────────────────────────────────────
 super + {1-9,0}
     bspc desktop -f '^{1-9,10}'
 
-# Move node to workspace
 super + shift + {1-9,0}
-    bspc node -d '^{1-9,10}'
+    bspc node -d '^{1-9,10}' --follow
 
-# ─── Resize ───────────────────────────────────────────────────────────────────
+# Cycle desktops
+super + bracket{left,right}
+    bspc desktop -f {prev,next}.local
+
+# ─── Resize Nodes ─────────────────────────────────────────────────────────────
 super + alt + {h,j,k,l}
     bspc node -z {left -20 0,bottom 0 20,top 0 -20,right 20 0}
 
 # ─── System ───────────────────────────────────────────────────────────────────
 
+# Reload sxhkd
+super + Escape
+    pkill -USR1 -x sxhkd && notify-send "sxhkd" "Config reloaded" -i dialog-information
+
 # Quit bspwm
 super + alt + Escape
     bspc quit
 
-# Reload sxhkd
-super + Escape
-    pkill -USR1 -x sxhkd
-
 # ─── Media Keys ───────────────────────────────────────────────────────────────
 XF86AudioRaiseVolume
-    pactl set-sink-volume @DEFAULT_SINK@ +5%
+    pactl set-sink-volume @DEFAULT_SINK@ +5% && \
+    notify-send "Volume" "$(pactl get-sink-volume @DEFAULT_SINK@ | grep -oP '\d+%' | head -1)" \
+        -h string:x-canonical-private-synchronous:volume -t 1500
+
 XF86AudioLowerVolume
-    pactl set-sink-volume @DEFAULT_SINK@ -5%
+    pactl set-sink-volume @DEFAULT_SINK@ -5% && \
+    notify-send "Volume" "$(pactl get-sink-volume @DEFAULT_SINK@ | grep -oP '\d+%' | head -1)" \
+        -h string:x-canonical-private-synchronous:volume -t 1500
+
 XF86AudioMute
-    pactl set-sink-mute @DEFAULT_SINK@ toggle
+    pactl set-sink-mute @DEFAULT_SINK@ toggle && \
+    notify-send "Volume" "Muted toggled" -h string:x-canonical-private-synchronous:volume -t 1500
+
+XF86AudioMicMute
+    pactl set-source-mute @DEFAULT_SOURCE@ toggle
+
 XF86AudioPlay
     playerctl play-pause
+
 XF86AudioNext
     playerctl next
+
 XF86AudioPrev
     playerctl previous
 
+XF86AudioStop
+    playerctl stop
+
 # Brightness
 XF86MonBrightnessUp
-    brightnessctl set +5%
+    brightnessctl set +5% && \
+    notify-send "Brightness" "$(brightnessctl get)  $(brightnessctl max | xargs -I{} expr $(brightnessctl get) \* 100 / {})%" \
+        -h string:x-canonical-private-synchronous:brightness -t 1500
+
 XF86MonBrightnessDown
-    brightnessctl set 5%-
-
-# ─── Screenshot ───────────────────────────────────────────────────────────────
-
-# Full screenshot
-Print
-    scrot ~/Pictures/Screenshots/%Y-%m-%d_%H-%M-%S.png -e 'notify-send "Screenshot saved"'
-
-# Selection screenshot
-super + Print
-    scrot -s ~/Pictures/Screenshots/%Y-%m-%d_%H-%M-%S.png -e 'notify-send "Screenshot saved"'
+    brightnessctl set 5%- && \
+    notify-send "Brightness" "$(brightnessctl get)" \
+        -h string:x-canonical-private-synchronous:brightness -t 1500

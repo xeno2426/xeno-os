@@ -1,0 +1,96 @@
+# ╔══════════════════════════════════════════════════════════════════╗
+# ║  Xeno OS — Embedded / IoT USB udev rules                        ║
+# ║  Grants dialout group access automatically. No manual chmod.    ║
+# ╚══════════════════════════════════════════════════════════════════╝
+
+# ─── CP210x (most common ESP32, NodeMCU) ─────────────────────────────────────
+SUBSYSTEM=="tty", ATTRS{idVendor}=="10c4", ATTRS{idProduct}=="ea60", \
+    GROUP="dialout", MODE="0664", \
+    SYMLINK+="esp32", \
+    TAG+="uaccess", \
+    RUN+="/usr/bin/notify-send 'Xeno OS' 'ESP32 (CP210x) connected: /dev/%k' -i dialog-information"
+
+SUBSYSTEM=="tty", ATTRS{idVendor}=="10c4", ATTRS{idProduct}=="ea70", \
+    GROUP="dialout", MODE="0664", SYMLINK+="esp32"
+
+# ─── CH340 / CH341 (cheap ESP32/Arduino clones) ───────────────────────────────
+SUBSYSTEM=="tty", ATTRS{idVendor}=="1a86", ATTRS{idProduct}=="7523", \
+    GROUP="dialout", MODE="0664", \
+    SYMLINK+="arduino", \
+    TAG+="uaccess", \
+    RUN+="/usr/bin/notify-send 'Xeno OS' 'Arduino/ESP32 (CH340) connected: /dev/%k' -i dialog-information"
+
+SUBSYSTEM=="tty", ATTRS{idVendor}=="1a86", ATTRS{idProduct}=="5523", \
+    GROUP="dialout", MODE="0664", SYMLINK+="arduino_ch341"
+
+# ─── FTDI FT232 (Arduino Uno R3, many dev boards) ────────────────────────────
+SUBSYSTEM=="tty", ATTRS{idVendor}=="0403", ATTRS{idProduct}=="6001", \
+    GROUP="dialout", MODE="0664", \
+    SYMLINK+="ftdi", \
+    TAG+="uaccess"
+
+SUBSYSTEM=="tty", ATTRS{idVendor}=="0403", ATTRS{idProduct}=="6010", \
+    GROUP="dialout", MODE="0664", SYMLINK+="ftdi_dual"
+
+SUBSYSTEM=="tty", ATTRS{idVendor}=="0403", ATTRS{idProduct}=="6011", \
+    GROUP="dialout", MODE="0664"
+
+SUBSYSTEM=="tty", ATTRS{idVendor}=="0403", ATTRS{idProduct}=="6014", \
+    GROUP="dialout", MODE="0664"
+
+# ─── ATmega / Arduino (Uno, Mega, Nano — CDC ACM) ────────────────────────────
+SUBSYSTEM=="tty", ATTRS{idVendor}=="2341", ATTRS{idProduct}=="0043", \
+    GROUP="dialout", MODE="0664", \
+    SYMLINK+="arduino_uno", \
+    TAG+="uaccess"
+
+SUBSYSTEM=="tty", ATTRS{idVendor}=="2341", ATTRS{idProduct}=="0010", \
+    GROUP="dialout", MODE="0664", SYMLINK+="arduino_mega"
+
+SUBSYSTEM=="tty", ATTRS{idVendor}=="2341", ATTRS{idProduct}=="003d", \
+    GROUP="dialout", MODE="0664", SYMLINK+="arduino_mega2560"
+
+SUBSYSTEM=="tty", ATTRS{idVendor}=="2341", ATTRS{idProduct}=="0036", \
+    GROUP="dialout", MODE="0664", SYMLINK+="arduino_leonardo"
+
+SUBSYSTEM=="tty", ATTRS{idVendor}=="2341", ATTRS{idProduct}=="8036", \
+    GROUP="dialout", MODE="0664"
+
+# ─── ESP32-S3 (native USB) ───────────────────────────────────────────────────
+SUBSYSTEM=="tty", ATTRS{idVendor}=="303a", ATTRS{idProduct}=="1001", \
+    GROUP="dialout", MODE="0664", \
+    SYMLINK+="esp32s3", \
+    TAG+="uaccess", \
+    RUN+="/usr/bin/notify-send 'Xeno OS' 'ESP32-S3 connected: /dev/%k' -i dialog-information"
+
+# ESP32-S3 DFU mode
+SUBSYSTEM=="usb", ATTRS{idVendor}=="303a", ATTRS{idProduct}=="0002", \
+    GROUP="dialout", MODE="0664", TAG+="uaccess"
+
+# ─── Raspberry Pi RP2040 (Pico, CircuitPython) ────────────────────────────────
+SUBSYSTEM=="tty", ATTRS{idVendor}=="2e8a", ATTRS{idProduct}=="0005", \
+    GROUP="dialout", MODE="0664", \
+    SYMLINK+="rpi_pico", \
+    TAG+="uaccess"
+
+# RP2040 UF2 bootloader
+SUBSYSTEM=="usb", ATTRS{idVendor}=="2e8a", ATTRS{idProduct}=="0003", \
+    GROUP="dialout", MODE="0664", TAG+="uaccess"
+
+# ─── STM32 (ST-Link v2, Blue Pill) ────────────────────────────────────────────
+SUBSYSTEM=="usb", ATTRS{idVendor}=="0483", ATTRS{idProduct}=="3748", \
+    GROUP="dialout", MODE="0664", TAG+="uaccess"
+
+SUBSYSTEM=="usb", ATTRS{idVendor}=="0483", ATTRS{idProduct}=="374b", \
+    GROUP="dialout", MODE="0664", TAG+="uaccess"
+
+SUBSYSTEM=="tty", ATTRS{idVendor}=="0483", ATTRS{idProduct}=="5740", \
+    GROUP="dialout", MODE="0664", SYMLINK+="stm32_cdc"
+
+# ─── USB-to-Serial generic (PL2303) ──────────────────────────────────────────
+SUBSYSTEM=="tty", ATTRS{idVendor}=="067b", ATTRS{idProduct}=="2303", \
+    GROUP="dialout", MODE="0664"
+
+# ─── J-Link (Segger) ─────────────────────────────────────────────────────────
+SUBSYSTEM=="usb", ATTRS{idVendor}=="1366", \
+    GROUP="dialout", MODE="0664", TAG+="uaccess"

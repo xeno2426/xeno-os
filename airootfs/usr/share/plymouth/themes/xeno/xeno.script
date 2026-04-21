@@ -1,0 +1,84 @@
+# ─── Xeno OS Plymouth Boot Theme ─────────────────────────────────────────────
+# Catppuccin Mocha palette
+# Background: base (#1e1e2e)   Progress bar: blue (#89b4fa)
+
+# Background
+Window.SetBackgroundTopColor(0.118, 0.118, 0.180);
+Window.SetBackgroundBottomColor(0.067, 0.067, 0.110);
+
+screen_width  = Window.GetWidth();
+screen_height = Window.GetHeight();
+cx = screen_width  / 2;
+cy = screen_height / 2;
+
+# ── Logo text (rendered as image if available, else skip) ────────────────────
+logo_image = Image("logo.png");
+if (logo_image) {
+    logo_sprite = Sprite(logo_image);
+    logo_sprite.SetX(cx - logo_image.GetWidth()  / 2);
+    logo_sprite.SetY(cy - logo_image.GetHeight() / 2 - 60);
+    logo_sprite.SetOpacity(1);
+}
+
+# ── Progress bar background ───────────────────────────────────────────────────
+BAR_W = Math.Min(400, screen_width * 0.5);
+BAR_H = 3;
+BAR_X = cx - BAR_W / 2;
+BAR_Y = cy + 80;
+
+bg_img = Image.New(BAR_W, BAR_H);
+bg_cr  = bg_img.GetSurface();
+Cairo.SetSourceRGBA(bg_cr, 0.192, 0.192, 0.282, 1); # surface0
+Cairo.Rectangle(bg_cr, 0, 0, BAR_W, BAR_H);
+Cairo.Fill(bg_cr);
+bg_sprite = Sprite(bg_img);
+bg_sprite.SetX(BAR_X);
+bg_sprite.SetY(BAR_Y);
+
+# ── Progress bar fill ─────────────────────────────────────────────────────────
+progress_img    = Image.New(BAR_W, BAR_H);
+progress_cr     = progress_img.GetSurface();
+progress_sprite = Sprite(progress_img);
+progress_sprite.SetX(BAR_X);
+progress_sprite.SetY(BAR_Y);
+
+fun redraw_progress(progress) {
+    fill_w = Math.Max(1, Math.Floor(BAR_W * progress));
+    Cairo.Save(progress_cr);
+    Cairo.SetOperator(progress_cr, CAIRO_OPERATOR_CLEAR);
+    Cairo.Paint(progress_cr);
+    Cairo.Restore(progress_cr);
+    # Blue glow
+    Cairo.SetSourceRGBA(progress_cr, 0.537, 0.706, 0.980, 1.0); # #89b4fa
+    Cairo.Rectangle(progress_cr, 0, 0, fill_w, BAR_H);
+    Cairo.Fill(progress_cr);
+    progress_sprite.SetImage(progress_img);
+}
+
+# ── Status message ────────────────────────────────────────────────────────────
+msg_sprite = Sprite();
+msg_sprite.SetX(cx);
+msg_sprite.SetY(BAR_Y + 18);
+msg_sprite.SetOpacity(0.7);
+
+fun update_status(text) {
+    msg_img = Image.Text(text, 0.537, 0.706, 0.980, 1, "JetBrainsMono Nerd Font 10");
+    msg_sprite.SetImage(msg_img);
+    msg_sprite.SetX(cx - msg_img.GetWidth() / 2);
+}
+
+# ── Callbacks ─────────────────────────────────────────────────────────────────
+fun boot_progress_cb(duration, progress) {
+    redraw_progress(progress);
+}
+
+fun status_change_cb(status) {
+    update_status(status);
+}
+
+Plymouth.SetBootProgressFunction(boot_progress_cb);
+Plymouth.SetUpdateStatusFunction(status_change_cb);
+
+# Initial draw
+redraw_progress(0);
+update_status("Booting Xeno OS...");

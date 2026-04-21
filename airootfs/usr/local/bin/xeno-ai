@@ -1,0 +1,163 @@
+#!/usr/bin/env bash
+# ╔══════════════════════════════════════════════════════════════════╗
+# ║                 Xeno OS — AI Tools Launcher                     ║
+# ║  Rofi menu → Jupyter Lab / IPython / Ollama / venv mgmt         ║
+# ╚══════════════════════════════════════════════════════════════════╝
+
+AIENV="$HOME/.local/share/xeno-ai-env"
+PYTHON="$AIENV/bin/python"
+JUPYTER="$AIENV/bin/jupyter"
+
+GREEN='\033[0;32m'; CYAN='\033[0;36m'; YELLOW='\033[1;33m'; RED='\033[0;31m'; NC='\033[0m'
+
+# ─── Ensure venv exists ───────────────────────────────────────────────────────
+ensure_venv() {
+    if [[ ! -d "$AIENV" ]]; then
+        echo -e "${YELLOW}AI environment not found. Creating...${NC}"
+        python -m venv "$AIENV"
+        "$AIENV/bin/pip" install --quiet --upgrade pip \
+            ipython jupyter jupyterlab numpy scipy matplotlib \
+            pandas scikit-learn torch torchvision tqdm pillow requests
+        echo -e "${GREEN}AI environment ready.${NC}"
+    fi
+}
+
+# ─── Launch functions ─────────────────────────────────────────────────────────
+launch_jupyter() {
+    ensure_venv
+    echo -e "${CYAN}Starting JupyterLab at http://localhost:8888${NC}"
+    notify-send "Xeno AI" "JupyterLab starting at localhost:8888" -i applications-science 2>/dev/null
+    kitty --title "JupyterLab" \
+          --override background_opacity=0.95 \
+          bash -c "$JUPYTER lab --no-browser --ip=127.0.0.1 --port=8888; read -p 'Press enter to close'" &
+    sleep 2
+    brave-browser http://localhost:8888 &
+}
+
+launch_ipython() {
+    ensure_venv
+    kitty --title "IPython — Xeno AI" \
+          --override background_opacity=0.95 \
+          "$AIENV/bin/ipython" &
+}
+
+launch_ollama() {
+    if ! command -v ollama &>/dev/null; then
+        kitty --title "Ollama Install" bash -c '
+            echo "Installing Ollama..."
+            curl -fsSL https://ollama.ai/install.sh | sh
+            echo "Done. Starting ollama serve..."
+            ollama serve &
+            sleep 2
+            echo "Ollama running. Try: ollama run llama3"
+            read -p "Press enter to close"
+        ' &
+    else
+        if ! pgrep -x ollama &>/dev/null; then
+            ollama serve &>/tmp/ollama.log &
+            sleep 1
+            notify-send "Xeno AI" "Ollama server started" -i applications-science 2>/dev/null
+        fi
+        kitty --title "Ollama — Xeno AI" \
+              bash -c 'echo -e "\033[34mOllama is running.\033[0m\nAvailable models:"; ollama list; echo ""; exec zsh' &
+    fi
+}
+
+launch_pytorch_check() {
+    ensure_venv
+    kitty --title "PyTorch Check — Xeno AI" \
+          "$PYTHON" -c "
+import torch, platform, sys
+print('\033[34m── Xeno AI — Environment Report ──\033[0m')
+print(f'Python   : {sys.version.split()[0]}')
+print(f'PyTorch  : {torch.__version__}')
+print(f'CUDA     : {torch.cuda.is_available()} ({torch.cuda.get_device_name(0) if torch.cuda.is_available() else \"CPU only\"})')
+print(f'Platform : {platform.machine()} / {platform.system()}')
+try:
+    import numpy as np; print(f'NumPy    : {np.__version__}')
+    import sklearn;     print(f'sklearn  : {sklearn.__version__}')
+    import pandas as pd;print(f'Pandas   : {pd.__version__}')
+except ImportError as e:
+    print(f'Missing  : {e}')
+input('\nPress Enter to close...')
+" &
+}
+
+update_venv() {
+    ensure_venv
+    kitty --title "Update AI Env" bash -c "
+        echo 'Updating Xeno AI environment...'
+        $AIENV/bin/pip install --upgrade pip ipython jupyter jupyterlab \
+            numpy scipy matplotlib pandas scikit-learn torch tqdm pillow requests
+        echo 'Done!'
+        read -p 'Press enter to close'
+    " &
+}
+
+# ─── Rofi menu (if running in X) ────────────────────────────────────────────
+rofi_menu() {
+    local choice
+    choice=$(printf '%s\n' \
+        "󰠭  JupyterLab     — browser-based notebooks" \
+        "  IPython        — enhanced Python REPL" \
+        "󰚩  Ollama         — local LLM (llama3, mistral…)" \
+        "  Environment   — check PyTorch / CUDA" \
+        "  Update         — upgrade AI packages" \
+        | rofi -dmenu \
+               -i \
+               -p "󰚩 Xeno AI" \
+               -config ~/.config/rofi/config.rasi \
+               -theme-str 'window { width: 560px; }' \
+               2>/dev/null
+    ) || return
+
+    case "$choice" in
+        *JupyterLab*)  launch_jupyter    ;;
+        *IPython*)     launch_ipython    ;;
+        *Ollama*)      launch_ollama     ;;
+        *Environment*) launch_pytorch_check ;;
+        *Update*)      update_venv       ;;
+    esac
+}
+
+# ─── CLI mode ────────────────────────────────────────────────────────────────
+cli_menu() {
+    echo -e "\n${CYAN}  Xeno OS — AI Tools${NC}\n"
+    echo "  1) JupyterLab"
+    echo "  2) IPython REPL"
+    echo "  3) Ollama (local LLM)"
+    echo "  4) Environment report"
+    echo "  5) Update AI packages"
+    echo "  q) Quit"
+    echo ""
+    read -rp "  Choice: " choice
+    case "$choice" in
+        1) launch_jupyter       ;;
+        2) launch_ipython       ;;
+        3) launch_ollama        ;;
+        4) launch_pytorch_check ;;
+        5) update_venv          ;;
+        q|Q) exit 0             ;;
+        *) echo -e "${RED}Invalid choice.${NC}" ;;
+    esac
+}
+
+# ─── Entry point ─────────────────────────────────────────────────────────────
+case "${1:-}" in
+    jupyter)     launch_jupyter       ;;
+    ipython)     launch_ipython       ;;
+    ollama)      launch_ollama        ;;
+    check)       launch_pytorch_check ;;
+    update)      update_venv          ;;
+    --help|-h)
+        echo "Usage: xeno-ai [jupyter|ipython|ollama|check|update]"
+        echo "       xeno-ai   (no args — opens rofi menu in X, cli menu in tty)"
+        ;;
+    *)
+        if [[ -n "${DISPLAY:-}" ]]; then
+            rofi_menu
+        else
+            cli_menu
+        fi
+        ;;
+esac

@@ -1,0 +1,9 @@
+[Trigger]
+Operation = Install
+Type      = Package
+Target    = flatpak
+
+[Action]
+Description = Adding Flathub remote...
+When        = PostTransaction
+Exec        = /bin/sh -c 'flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo'

@@ -1,0 +1,79 @@
+/* Xeno OS — Rofi Theme | Catppuccin Mocha */
+* {
+    base:     #1e1e2eee;
+    surface0: #313244ff;
+    surface1: #45475aff;
+    overlay0: #6c7086ff;
+    text:     #cdd6f4ff;
+    subtext:  #a6adc8ff;
+    blue:     #89b4faff;
+    red:      #f38ba8ff;
+    background-color: transparent;
+    text-color: @text;
+    border: 0; margin: 0; padding: 0; spacing: 0;
+}
+window {
+    background-color: @base;
+    border:           1px solid @surface0;
+    border-radius:    12px;
+    width:            660px;
+    location:         center;
+    anchor:           center;
+    x-offset:         0;
+    y-offset:         -80;
+}
+mainbox {
+    background-color: transparent;
+    children:  [ inputbar, listview ];
+    padding:   12px;
+    spacing:   8px;
+}
+inputbar {
+    background-color: @surface0;
+    border-radius:    8px;
+    padding:          10px 16px;
+    spacing:          10px;
+    children:         [ prompt, textbox-prompt-colon, entry ];
+}
+prompt {
+    background-color: transparent;
+    text-color:       @blue;
+    font:             "JetBrainsMono Nerd Font Bold 11";
+}
+textbox-prompt-colon {
+    background-color: transparent;
+    text-color:       @overlay0;
+    expand:           false;
+    str:              "│";
+}
+entry {
+    background-color: transparent;
+    text-color:       @text;
+    placeholder:      "Search applications...";
+    placeholder-color: @overlay0;
+    cursor-color:     @blue;
+    font:             "JetBrainsMono Nerd Font 11";
+}
+listview {
+    background-color: transparent;
+    columns:  1;
+    lines:    8;
+    scrollbar: false;
+    spacing:  2px;
+    cycle:    true;
+}
+element {
+    background-color: transparent;
+    border-radius:    6px;
+    padding:          8px 12px;
+    spacing:          10px;
+    orientation:      horizontal;
+    children:         [ element-icon, element-text ];
+    cursor:           pointer;
+}
+element.normal.normal   { background-color: transparent; text-color: @text; }
+element.selected.normal { background-color: @surface0; text-color: @text; border-left: 2px solid @blue; border-radius: 0px 6px 6px 0px; }
+element.normal.urgent   { text-color: @red; }
+element.selected.urgent { background-color: @red; text-color: @base; }
+element-icon  { background-color: transparent; size: 28px; vertical-align: 0.5; }
+element-text  { background-color: transparent; text-color: inherit; vertical-align: 0.5; font: "JetBrainsMono Nerd Font 10"; }

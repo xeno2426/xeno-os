@@ -16,28 +16,20 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install Arch Linux + archiso on Ubuntu runner
+      - name: Install deps + archiso
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y arch-install-scripts squashfs-tools \
-            libisoburn1 xorriso dosfstools mtools erofs-utils
+          sudo apt-get install -y \
+            squashfs-tools libisoburn1 xorriso dosfstools mtools \
+            erofs-utils arch-install-scripts python3-docutils
 
-          # Install archiso from source since Ubuntu doesn't have it
           git clone --depth=1 https://gitlab.archlinux.org/archlinux/archiso.git /tmp/archiso-src
           sudo make -C /tmp/archiso-src install
 
-      - name: Strip Chaotic-AUR from pacman.conf (not available in build env)
+      - name: Strip AUR-only stuff from build
         run: |
-          sed -i '/chaotic-aur/,+1d' pacman.conf
-          sed -i '/chaotic-mirrorlist/d' packages.x86_64
-          sed -i '/chaotic-keyring/d' packages.x86_64
-          # Also remove AUR-only packages that can't install from official repos
-          sed -i '/^yay$/d' packages.x86_64
-          sed -i '/^pamac-nosnap$/d' packages.x86_64
-          sed -i '/^brave-bin$/d' packages.x86_64
-          sed -i '/^betterlockscreen$/d' packages.x86_64
-          echo "pacman.conf after strip:"
-          tail -10 pacman.conf
+          sed -i '/\[chaotic-aur\]/,+1d' pacman.conf
+          sed -i '/chaotic-mirrorlist\|chaotic-keyring\|^yay$\|^pamac-nosnap$\|^brave-bin$\|^betterlockscreen$/d' packages.x86_64
 
       - name: Build ISO
         run: |

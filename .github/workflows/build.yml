@@ -12,22 +12,37 @@ jobs:
     permissions:
       contents: write
 
-    container:
-      image: archlinux:latest
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install build deps
+      - name: Install Arch Linux + archiso on Ubuntu runner
         run: |
-          pacman -Syu --noconfirm
-          pacman -S --noconfirm archiso git dosfstools libisoburn mtools squashfs-tools erofs-utils
+          sudo apt-get update -qq
+          sudo apt-get install -y arch-install-scripts squashfs-tools \
+            libisoburn1 xorriso dosfstools mtools erofs-utils
+
+          # Install archiso from source since Ubuntu doesn't have it
+          git clone --depth=1 https://gitlab.archlinux.org/archlinux/archiso.git /tmp/archiso-src
+          sudo make -C /tmp/archiso-src install
+
+      - name: Strip Chaotic-AUR from pacman.conf (not available in build env)
+        run: |
+          sed -i '/chaotic-aur/,+1d' pacman.conf
+          sed -i '/chaotic-mirrorlist/d' packages.x86_64
+          sed -i '/chaotic-keyring/d' packages.x86_64
+          # Also remove AUR-only packages that can't install from official repos
+          sed -i '/^yay$/d' packages.x86_64
+          sed -i '/^pamac-nosnap$/d' packages.x86_64
+          sed -i '/^brave-bin$/d' packages.x86_64
+          sed -i '/^betterlockscreen$/d' packages.x86_64
+          echo "pacman.conf after strip:"
+          tail -10 pacman.conf
 
       - name: Build ISO
         run: |
           mkdir -p /tmp/xeno-build /tmp/xeno-out
-          mkarchiso -v -w /tmp/xeno-build -o /tmp/xeno-out .
+          sudo mkarchiso -v -w /tmp/xeno-build -o /tmp/xeno-out .
         timeout-minutes: 90
 
       - name: Checksum

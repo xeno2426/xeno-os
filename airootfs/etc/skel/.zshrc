@@ -275,11 +275,22 @@ if command -v starship &>/dev/null; then
     eval "$(starship init zsh)"
 fi
 
-# ─── First-run hook (#2) ─────────────────────────────────────────────────────
-if [[ ! -f "$HOME/.config/xeno-setup-done" ]] && \
-   command -v xeno-firstrun.sh &>/dev/null; then
-    xeno-firstrun.sh
+# ─── First-run hook ──────────────────────────────────────────────────────────
+# Uses a lock file to prevent re-entry if firstrun crashes mid-way.
+# A separate in-progress sentinel ensures partial runs resume rather than restart.
+_XENO_MARKER="$HOME/.config/xeno-setup-done"
+_XENO_LOCK="$HOME/.config/xeno-setup-inprogress"
+if [[ ! -f "$_XENO_MARKER" ]] && command -v xeno-firstrun.sh &>/dev/null; then
+    if [[ ! -f "$_XENO_LOCK" ]]; then
+        touch "$_XENO_LOCK"
+        xeno-firstrun.sh
+        rm -f "$_XENO_LOCK"
+    else
+        echo "[xeno] First-run setup is already in progress in another terminal."
+        echo "[xeno] If it crashed, remove ~/.config/xeno-setup-inprogress and retry."
+    fi
 fi
+unset _XENO_MARKER _XENO_LOCK
 
 # ─── fastfetch on new terminal ────────────────────────────────────────────────
 if command -v fastfetch &>/dev/null && [[ -z "$XENO_NO_FETCH" ]]; then

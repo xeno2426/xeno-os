@@ -5,25 +5,40 @@
 # ║  then delegates heavy lifting to archinstall via JSON config.    ║
 # ╚══════════════════════════════════════════════════════════════════╝
 
-set -euo pipefail
+set -uo pipefail
 
-# ─── Colours (for non-dialog output) ─────────────────────────────────────────
 RED='\033[0;31m'; GREEN='\033[0;32m'; BLUE='\033[0;34m'
 CYAN='\033[0;36m'; YELLOW='\033[1;33m'; NC='\033[0m'
 
-TMPDIR="$(mktemp -d)"
+# Use a RAM-backed tmpdir with strict permissions
+TMPDIR="$(mktemp -d --tmpfs 2>/dev/null || mktemp -d)"
+chmod 700 "$TMPDIR"
 CONFIG_FILE="$TMPDIR/xeno-install.json"
+LOG_FILE="/tmp/xeno-install.log"
 trap 'rm -rf "$TMPDIR"' EXIT
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
-die()    { dialog --title "Fatal Error" --msgbox "$1" 8 50; clear; exit 1; }
-info()   { dialog --title "Info" --infobox "$1" 5 50; sleep 1; }
+die()        { dialog --title "Fatal Error" --msgbox "$1" 8 55; clear; exit 1; }
+info()       { dialog --title "Info" --infobox "$1" 5 52; sleep 1; }
 check_root() { [[ $EUID -ne 0 ]] && die "Xeno Installer must be run as root."; }
 check_net()  {
     if ! ping -c1 -W3 archlinux.org &>/dev/null; then
         dialog --title "No Internet" --yesno \
             "No internet connection detected.\nInstallation requires internet. Continue anyway?" 8 55
         [[ $? -ne 0 ]] && clear && exit 1
+    fi
+}
+
+MIN_DISK_BYTES=$((8 * 1024 * 1024 * 1024))   # 8 GiB minimum
+
+check_disk_size() {
+    local dev="$1"
+    local bytes
+    bytes=$(lsblk -bdno SIZE "$dev" 2>/dev/null || echo 0)
+    if (( bytes < MIN_DISK_BYTES )); then
+        local human
+        human=$(lsblk -dno SIZE "$dev")
+        die "Disk $dev is only $human — Xeno OS requires at least 8 GiB."
     fi
 }
 
@@ -46,8 +61,9 @@ welcome() {
     • Locale and timezone\n\
     • User account creation\n\
     • Desktop environment setup\n\
+    • Optional components (Docker, AI, Robotics…)\n\
 \n\
-  Press OK to begin." 22 70
+  Press OK to begin." 23 70
 }
 
 # ─── Screen 2: Disk Selection ─────────────────────────────────────────────────
@@ -66,6 +82,8 @@ select_disk() {
                   --title "Select Installation Disk" \
                   --menu "\nChoose the disk to install Xeno OS onto.\n\nWARNING: All data will be erased!\n" \
                   16 55 6 "${disks[@]}" 3>&1 1>&2 2>&3) || exit 1
+
+    check_disk_size "$DISK"
 }
 
 # ─── Screen 3: Partition Scheme ───────────────────────────────────────────────
@@ -135,8 +153,8 @@ set_hostname() {
                       --inputbox "\nEnter a hostname for this machine:" \
                       9 50 "xeno" \
                       3>&1 1>&2 2>&3) || exit 1
-    # Sanitise: lowercase alphanumeric and hyphens only
     HOSTNAME=$(echo "$HOSTNAME" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9-]/-/g')
+    [[ -z "$HOSTNAME" ]] && HOSTNAME="xeno"
 }
 
 # ─── Screen 7: User Account ───────────────────────────────────────────────────
@@ -149,23 +167,32 @@ create_user() {
     USERNAME=$(echo "$USERNAME" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9_-]//g')
     [[ -z "$USERNAME" ]] && die "Username cannot be empty."
 
-    local pass1 pass2
-    pass1=$(dialog --backtitle "Xeno OS Installer" \
-                   --title "User Password" \
-                   --passwordbox "\nEnter password for $USERNAME:" \
-                   9 50 3>&1 1>&2 2>&3) || exit 1
-    pass2=$(dialog --backtitle "Xeno OS Installer" \
-                   --title "User Password" \
-                   --passwordbox "\nConfirm password for $USERNAME:" \
-                   9 50 3>&1 1>&2 2>&3) || exit 1
-    [[ "$pass1" != "$pass2" ]] && die "Passwords do not match."
-    [[ -z "$pass1" ]] && die "Password cannot be empty."
-    USER_PASSWORD="$pass1"
+    # Collect passwords via tmpfs files — never touch /tmp as plaintext
+    local pass_file="$TMPDIR/pass1" pass2_file="$TMPDIR/pass2"
 
-    ROOT_PASS=$(dialog --backtitle "Xeno OS Installer" \
-                       --title "Root Password" \
-                       --passwordbox "\nEnter root password (or leave blank to disable root login):" \
-                       9 60 3>&1 1>&2 2>&3) || exit 1
+    dialog --backtitle "Xeno OS Installer" \
+           --title "User Password" \
+           --passwordbox "\nEnter password for $USERNAME:" \
+           9 50 3>&1 1>&2 2>&3 > "$pass_file" || exit 1
+    dialog --backtitle "Xeno OS Installer" \
+           --title "User Password" \
+           --passwordbox "\nConfirm password for $USERNAME:" \
+           9 50 3>&1 1>&2 2>&3 > "$pass2_file" || exit 1
+
+    local p1 p2
+    p1=$(cat "$pass_file"); p2=$(cat "$pass2_file")
+    rm -f "$pass_file" "$pass2_file"
+    [[ "$p1" != "$p2" ]] && die "Passwords do not match."
+    [[ -z "$p1" ]] && die "Password cannot be empty."
+    USER_PASSWORD="$p1"
+
+    local rpass_file="$TMPDIR/rpass"
+    dialog --backtitle "Xeno OS Installer" \
+           --title "Root Password" \
+           --passwordbox "\nEnter root password (leave blank to lock root):" \
+           9 60 3>&1 1>&2 2>&3 > "$rpass_file" || exit 1
+    ROOT_PASS=$(cat "$rpass_file")
+    rm -f "$rpass_file"
 }
 
 # ─── Screen 8: Desktop Extras ────────────────────────────────────────────────
@@ -183,13 +210,32 @@ select_extras() {
                     3>&1 1>&2 2>&3) || exit 1
 }
 
+# ─── Build extra package list from selections ─────────────────────────────────
+build_extra_packages() {
+    local pkgs=()
+    [[ "$EXTRAS" == *docker*   ]] && pkgs+=(docker docker-compose)
+    [[ "$EXTRAS" == *flatpak*  ]] && pkgs+=(flatpak)
+    [[ "$EXTRAS" == *robotics* ]] && pkgs+=(esptool python-pyserial minicom avrdude)
+    [[ "$EXTRAS" == *ai*       ]] && pkgs+=(python python-pip python-virtualenv python-numpy python-scipy python-matplotlib python-pillow)
+    [[ "$EXTRAS" == *brave*    ]] && pkgs+=(brave-bin)
+    [[ "$EXTRAS" == *plymouth* ]] && pkgs+=(plymouth)
+    EXTRA_PACKAGES="${pkgs[*]}"
+}
+
+# ─── Build extra services list ────────────────────────────────────────────────
+build_extra_services() {
+    local svcs=()
+    [[ "$EXTRAS" == *docker* ]] && svcs+=(docker.service)
+    EXTRA_SERVICES="${svcs[*]}"
+}
+
 # ─── Screen 9: Summary ────────────────────────────────────────────────────────
 confirm_install() {
     local fs_label
     case "$PARTITION_SCHEME" in
         auto_btrfs) fs_label="Btrfs (auto)" ;;
-        auto_ext4)  fs_label="ext4 (auto)" ;;
-        *)          fs_label="Manual" ;;
+        auto_ext4)  fs_label="ext4 (auto)"  ;;
+        *)          fs_label="Manual"        ;;
     esac
 
     dialog --backtitle "Xeno OS Installer" \
@@ -203,22 +249,37 @@ confirm_install() {
 │  Keymap:     $KEYMAP
 │  Hostname:   $HOSTNAME
 │  Username:   $USERNAME
+│  Extras:     $EXTRAS
 └─────────────────────────────────────┘
 
 WARNING: $DISK will be COMPLETELY ERASED.
 
 Proceed with installation?" \
-           18 55 || exit 1
+           20 55 || exit 1
 }
 
-# ─── Screen 10: Build archinstall JSON Config ─────────────────────────────────
+# ─── Build archinstall JSON Config ────────────────────────────────────────────
 build_config() {
-    local fs_type bootloader
+    local fs_type
     case "$PARTITION_SCHEME" in
         auto_btrfs) fs_type="btrfs" ;;
         *)          fs_type="ext4"  ;;
     esac
-    bootloader="systemd-bootctl"
+
+    build_extra_packages
+    build_extra_services
+
+    # Build packages JSON array
+    local base_pkgs=(networkmanager sudo git base-devel neovim)
+    local all_pkgs=("${base_pkgs[@]}" $EXTRA_PACKAGES)
+    local pkgs_json
+    pkgs_json=$(printf '"%s",' "${all_pkgs[@]}" | sed 's/,$//')
+
+    # Build services JSON array
+    local base_svcs=(NetworkManager)
+    local all_svcs=("${base_svcs[@]}" $EXTRA_SERVICES)
+    local svcs_json
+    svcs_json=$(printf '"%s",' "${all_svcs[@]}" | sed 's/,$//')
 
     cat > "$CONFIG_FILE" << JSONEOF
 {
@@ -250,7 +311,7 @@ build_config() {
       }
     ]
   },
-  "bootloader": "$bootloader",
+  "bootloader": "systemd-bootctl",
   "hostname": "$HOSTNAME",
   "locale_config": {
     "kb_layout": "$KEYMAP",
@@ -258,45 +319,53 @@ build_config() {
     "sys_lang": "$LOCALE"
   },
   "timezone": "$TIMEZONE",
-  "mirror_config": {
-    "mirror_regions": {}
-  },
+  "mirror_config": { "mirror_regions": {} },
   "kernels": ["linux"],
-  "packages": ["networkmanager", "sudo", "git", "base-devel", "neovim"],
-  "services": ["NetworkManager"],
+  "packages": [$pkgs_json],
+  "services": [$svcs_json],
   "user_accounts": [
     {
       "username": "$USERNAME",
       "password": "$USER_PASSWORD",
       "sudo": true,
-      "groups": ["wheel", "docker", "dialout", "video", "audio", "input"]
+      "groups": ["wheel","docker","dialout","video","audio","input"]
     }
   ],
   "root_password": "$ROOT_PASS"
 }
 JSONEOF
+
+    # Clear sensitive vars from memory
+    USER_PASSWORD=""
+    ROOT_PASS=""
 }
 
-# ─── Install ──────────────────────────────────────────────────────────────────
+# ─── Run Install ──────────────────────────────────────────────────────────────
 run_install() {
     clear
     echo -e "${CYAN}Starting Xeno OS installation...${NC}\n"
     echo -e "${YELLOW}Disk: $DISK | User: $USERNAME | Host: $HOSTNAME${NC}\n"
+    echo -e "Log: $LOG_FILE\n"
 
-    if archinstall --config "$CONFIG_FILE" --silent; then
+    if archinstall --config "$CONFIG_FILE" --silent 2>&1 | tee "$LOG_FILE"; then
+        # Wipe config from disk immediately after use
+        shred -u "$CONFIG_FILE" 2>/dev/null || rm -f "$CONFIG_FILE"
+
         dialog --backtitle "Xeno OS Installer" \
                --title "Installation Complete" \
                --msgbox "\n\
   Xeno OS has been installed successfully!\n\
 \n\
-  Your system is ready. On first login the\n\
-  Xeno first-run setup will complete the\n\
-  desktop environment configuration.\n\
+  On first login, Xeno first-run setup will\n\
+  complete the desktop environment.\n\
 \n\
-  Remove the USB drive and reboot." \
-               14 55
+  Remove the USB drive and reboot.\n\
+\n\
+  Log saved to: $LOG_FILE" \
+               15 55
     else
-        die "archinstall exited with an error. Check /tmp/archinstall.log for details."
+        shred -u "$CONFIG_FILE" 2>/dev/null || rm -f "$CONFIG_FILE"
+        die "archinstall failed. Check $LOG_FILE for details."
     fi
 }
 

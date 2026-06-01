@@ -1,7 +1,23 @@
 #!/bin/sh
 
 # ─── Monitors & Workspaces ────────────────────────────────────────────────────
-bspc monitor -d I II III IV V VI VII VIII IX X
+# Distribute 10 workspaces across all connected monitors
+MONITORS=$(xrandr --query | grep ' connected' | cut -d' ' -f1)
+MONITOR_COUNT=$(echo "$MONITORS" | wc -l)
+
+if [ "$MONITOR_COUNT" -ge 2 ]; then
+    i=1
+    for mon in $MONITORS; do
+        case $i in
+            1) bspc monitor "$mon" -d I II III IV V ;;
+            2) bspc monitor "$mon" -d VI VII VIII IX X ;;
+            *) bspc monitor "$mon" -d X ;;
+        esac
+        i=$((i+1))
+    done
+else
+    bspc monitor -d I II III IV V VI VII VIII IX X
+fi
 
 # ─── Window Behaviour ─────────────────────────────────────────────────────────
 bspc config border_width           2
@@ -38,14 +54,19 @@ bspc rule -a "\*:float"    state=floating
 
 # ─── Autostart ────────────────────────────────────────────────────────────────
 
+# Fallback solid background colour while wallpaper loads
+xsetroot -solid "#1e1e2e" &
+
 # Keybind daemon
 sxhkd &
 
-# Compositor — blur, shadows, rounded corners
+# Compositor
 picom --config "$HOME/.config/picom/picom.conf" --daemon
 
-# Wallpaper
-nitrogen --restore &
+# Wallpaper — restore saved or set fallback
+if command -v nitrogen &>/dev/null; then
+    nitrogen --restore 2>/dev/null || xsetroot -solid "#1e1e2e"
+fi
 
 # macOS-style top bar
 "$HOME/.config/polybar/launch.sh" &
@@ -58,8 +79,5 @@ dunst &
 
 # Lock screen on idle / lid close
 xss-lock --transfer-sleep-lock -- xeno-lock &
-
-# System tray (standalone — polybar tray fallback)
-# (polybar handles tray natively; this line is a fallback only)
 
 echo "bspwm: environment ready" | systemd-cat -t bspwm 2>/dev/null || true

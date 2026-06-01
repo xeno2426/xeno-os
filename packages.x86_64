@@ -216,6 +216,10 @@ gcc-fortran
 python-numpy
 python-scipy
 python-matplotlib
+python-torch
+python-torchvision
+python-scikit-learn
+python-pandas
 
 # --- MODERN DEV & CLOUD ---
 docker

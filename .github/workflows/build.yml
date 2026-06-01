@@ -1,0 +1,122 @@
+name: Build Xeno OS ISO
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:  # allows manual trigger from Actions tab
+
+jobs:
+  build:
+    name: Build ISO
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # needed to create releases
+
+    steps:
+      # ── 1. Checkout repo ───────────────────────────────────────────────────
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ── 2. Install Arch Linux container (archiso runs inside it) ───────────
+      - name: Set up Arch Linux container
+        uses: archlinux/setup-pacman@v1
+        with:
+          pacman-packages: |
+            archiso
+            git
+            dosfstools
+            libisoburn
+            mtools
+            squashfs-tools
+            erofs-utils
+
+      # ── 3. Validate packages.x86_64 — catch typos before wasting build time
+      - name: Validate package list
+        run: |
+          echo "Checking packages.x86_64 for obvious issues..."
+          # Strip comments and blank lines, count packages
+          PKG_COUNT=$(grep -v '^\s*#' packages.x86_64 | grep -v '^\s*$' | wc -l)
+          echo "Package count: $PKG_COUNT"
+          if [ "$PKG_COUNT" -lt 10 ]; then
+            echo "ERROR: packages.x86_64 looks too short ($PKG_COUNT packages)"
+            exit 1
+          fi
+          echo "Package list looks OK."
+
+      # ── 4. Build the ISO ───────────────────────────────────────────────────
+      - name: Build ISO
+        run: |
+          mkdir -p /tmp/xeno-build /tmp/xeno-out
+          sudo mkarchiso -v \
+            -w /tmp/xeno-build \
+            -o /tmp/xeno-out \
+            .
+        timeout-minutes: 90
+
+      # ── 5. Get ISO filename & size ─────────────────────────────────────────
+      - name: Get ISO info
+        id: iso_info
+        run: |
+          ISO_PATH=$(ls /tmp/xeno-out/*.iso | head -1)
+          ISO_NAME=$(basename "$ISO_PATH")
+          ISO_SIZE=$(du -sh "$ISO_PATH" | cut -f1)
+          echo "iso_path=$ISO_PATH"   >> "$GITHUB_OUTPUT"
+          echo "iso_name=$ISO_NAME"   >> "$GITHUB_OUTPUT"
+          echo "iso_size=$ISO_SIZE"   >> "$GITHUB_OUTPUT"
+          echo "Built: $ISO_NAME ($ISO_SIZE)"
+
+      # ── 6. Generate SHA256 checksum ────────────────────────────────────────
+      - name: Generate checksum
+        run: |
+          cd /tmp/xeno-out
+          sha256sum *.iso > sha256sums.txt
+          cat sha256sums.txt
+
+      # ── 7. Upload ISO as workflow artifact (always available) ──────────────
+      - name: Upload ISO artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: xeno-os-iso
+          path: |
+            /tmp/xeno-out/*.iso
+            /tmp/xeno-out/sha256sums.txt
+          retention-days: 7
+
+      # ── 8. Create GitHub Release (only on push to main, not PRs) ──────────
+      - name: Create Release
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: "build-${{ github.run_number }}"
+          name: "Xeno OS — Build ${{ github.run_number }}"
+          body: |
+            ## Xeno OS ISO
+
+            **Build:** ${{ github.run_number }}
+            **Commit:** ${{ github.sha }}
+            **Size:** ${{ steps.iso_info.outputs.iso_size }}
+
+            ### What's included
+            - bspwm desktop (Catppuccin Mocha)
+            - Polybar, Picom, Rofi, Kitty, Neovim
+            - AI tools: `xeno-ai` (Jupyter, IPython, Ollama)
+            - Robotics: ESP32, Arduino, RP2040 udev rules
+            - Guided TUI installer: `xeno-installer`
+
+            ### Flash to USB
+            ```bash
+            sudo dd if=xeno-os-*.iso of=/dev/sdX bs=4M status=progress oflag=sync
+            ```
+            Or use [Balena Etcher](https://etcher.balena.io) / [Ventoy](https://ventoy.net).
+
+            ### SHA256
+            See `sha256sums.txt` attached below.
+          files: |
+            /tmp/xeno-out/*.iso
+            /tmp/xeno-out/sha256sums.txt
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

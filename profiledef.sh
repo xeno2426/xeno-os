@@ -34,9 +34,7 @@ file_permissions=(
 systemd_services=(
   'NetworkManager.service'
   'sshd.service'
-  'tlp.service'
   'avahi-daemon.service'
   'systemd-resolved.service'
   'xeno-init.service'
-  'docker.service'
 )

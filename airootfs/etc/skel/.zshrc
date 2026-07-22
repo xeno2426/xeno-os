@@ -281,7 +281,7 @@ fi
 _XENO_MARKER="$HOME/.config/xeno-setup-done"
 _XENO_LOCK="$HOME/.config/xeno-setup-inprogress"
 if [[ ! -f "$_XENO_MARKER" ]] && command -v xeno-firstrun.sh &>/dev/null; then
-    if [[ ! -f "$_XENO_LOCK" ]]; then
+    if [[ ! -f "$_XENO_LOCK" ]] || [[ $(find "$_XENO_LOCK" -mmin +10 2>/dev/null) ]]; then
         touch "$_XENO_LOCK"
         xeno-firstrun.sh
         rm -f "$_XENO_LOCK"

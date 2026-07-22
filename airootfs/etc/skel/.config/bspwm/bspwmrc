@@ -64,8 +64,11 @@ sxhkd &
 picom --config "$HOME/.config/picom/picom.conf" --daemon
 
 # Wallpaper — restore saved or set fallback
-if command -v nitrogen &>/dev/null; then
-    nitrogen --restore 2>/dev/null || xsetroot -solid "#1e1e2e"
+if [ -f "$HOME/.fehbg" ]; then
+    bash "$HOME/.fehbg" 2>/dev/null || xsetroot -solid "#1e1e2e"
+elif command -v feh &>/dev/null; then
+    WALL=$(find "$HOME/.local/share/backgrounds/xeno-os" -name "*.png" 2>/dev/null | head -1)
+    [ -n "$WALL" ] && feh --bg-fill "$WALL" || xsetroot -solid "#1e1e2e"
 fi
 
 # macOS-style top bar

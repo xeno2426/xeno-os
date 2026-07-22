@@ -224,7 +224,7 @@ alias ai='xeno-ai'
 alias lock='xeno-lock'
 alias install-gui='xeno-installer'
 alias firstrun='xeno-firstrun.sh'
-alias wallpaper='xeno-wallpaper && nitrogen --restore'
+alias wallpaper='xeno-wallpaper && feh --bg-fill "$(find ~/.local/share/backgrounds/xeno-os -name *.png | head -1)"'
 
 # ─── Functions ────────────────────────────────────────────────────────────────
 

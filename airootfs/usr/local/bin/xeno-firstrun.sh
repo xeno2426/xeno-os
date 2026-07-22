@@ -57,11 +57,11 @@ fi
 
 # ─── 4. nitrogen wallpaper restore ───────────────────────────────────────────
 step "Setting desktop wallpaper"
-if command -v nitrogen &>/dev/null && [[ -d "$WALLPAPER_DIR" ]]; then
+if command -v feh &>/dev/null && [[ -d "$WALLPAPER_DIR" ]]; then
     WALL=$(find "$WALLPAPER_DIR" -name "*.png" | head -1)
     if [[ -n "$WALL" ]]; then
-        nitrogen --set-zoom-fill --save "$WALL" 2>/dev/null && \
-            ok "Wallpaper set: $WALL" || warn "nitrogen failed — skipping"
+        feh --bg-fill "$WALL" 2>/dev/null && \
+            ok "Wallpaper set: $WALL" || warn "feh failed — skipping"
     fi
 fi
 

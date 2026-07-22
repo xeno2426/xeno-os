@@ -142,9 +142,8 @@ picom
 rofi
 polybar
 plank
-nitrogen
+feh
 lxappearance
-arc-gtk-theme
 papirus-icon-theme
 ttf-jetbrains-mono-nerd
 ttf-font-awesome
@@ -175,7 +174,7 @@ xss-lock
 
 # --- SYSTEM INSTALLER ---
 dialog
-newt
+libnewt
 
 # --- APPS ---
 brave-bin
@@ -209,14 +208,14 @@ python
 python-pip
 python-virtualenv
 python-pillow
-python-ipython
+ipython
 git-lfs
 blas-openblas
 gcc-fortran
 python-numpy
 python-scipy
 python-matplotlib
-python-torch
+python-pytorch
 python-torchvision
 python-scikit-learn
 python-pandas
